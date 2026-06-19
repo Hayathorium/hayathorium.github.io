@@ -1,10 +1,965 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>My Website</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portfolio — Hayato Isa</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --mono: 'Space Mono', monospace;
+  --sans: 'Space Grotesk', sans-serif;
+  --bg: #07090f;
+  --surface: rgba(8,14,22,0.82);
+  --surface-hi: rgba(10,18,30,0.92);
+  --border: rgba(80,140,180,0.18);
+  --border-hi: rgba(100,180,220,0.35);
+  --text: #c8dce8;
+  --text-dim: #4a6a7a;
+  --text-muted: #2a4050;
+  --accent: #6ab4d4;
+  --accent2: #4ac060;
+  --warn: #c8a060;
+  --danger: #d44a4a;
+  --purple: #8a4ac0;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  overflow: hidden;
+}
+
+/* ── Canvas ── */
+#bg-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%; height: 100%;
+  z-index: 0;
+}
+
+/* ── Scanlines overlay ── */
+#scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    rgba(0,0,0,0.08) 3px,
+    rgba(0,0,0,0.08) 4px
+  );
+}
+
+/* ── Main layout ── */
+#ui {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0;
+}
+
+/* ── Top bar ── */
+#topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 32px;
+  border-bottom: 0.5px solid var(--border);
+  background: rgba(7,9,15,0.6);
+  backdrop-filter: blur(6px);
+}
+#topbar .sys-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.14em;
+}
+#topbar .sys-status {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+#topbar .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent2);
+  animation: pulse-dot 2.4s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+#topbar .status-txt {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+}
+#event-ticker {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+/* ── Center hero ── */
+#hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  text-align: center;
+  padding: 0 24px;
+}
+
+#hero .eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #e0eef6;
+  letter-spacing: 0.22em;
+  margin-bottom: 22px;
+}
+
+#hero h1 {
+  font-family: var(--mono);
+  font-size: clamp(32px, 5vw, 62px);
+  font-weight: 700;
+  color: #e0eef6;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  margin-bottom: 14px;
+  text-shadow: 0 0 40px rgba(106,180,212,0.18);
+}
+
+#hero .tagline {
+  font-family: var(--sans);
+  font-size: clamp(13px, 1.6vw, 17px);
+  font-weight: 300;
+  color: #ffffff;
+  letter-spacing: 0.06em;
+  max-width: 480px;
+  line-height: 1.6;
+  margin-bottom: 48px;
+}
+
+/* ── Nav buttons ── */
+#nav {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.nav-btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  padding: 9px 22px;
+  background: rgba(8,14,24,0.7);
+  color: var(--accent);
+  border: 0.5px solid var(--border-hi);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+}
+.nav-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(106,180,212,0.06);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.nav-btn:hover { color: #e0eef6; border-color: var(--accent); }
+.nav-btn:hover::before { opacity: 1; }
+
+/* ── Bottom HUD ── */
+#bottomhud {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 12px 32px 14px;
+  border-top: 0.5px solid var(--border);
+  background: rgba(7,9,15,0.6);
+  backdrop-filter: blur(6px);
+}
+.hud-metric { text-align: left; }
+.hud-metric .k {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+  margin-bottom: 2px;
+}
+.hud-metric .v {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+.hud-metrics { display: flex; gap: 28px; }
+.legend-row { display: flex; gap: 14px; align-items: center; }
+.leg { display: flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 9px; color: var(--text-muted); letter-spacing: 0.06em; }
+.leg-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Crosshair corners ── */
+.corner {
+  position: fixed;
+  width: 18px; height: 18px;
+  z-index: 3;
+  pointer-events: none;
+}
+.corner::before, .corner::after {
+  content: '';
+  position: absolute;
+  background: var(--accent);
+  opacity: 0.5;
+}
+.corner::before { width: 100%; height: 0.5px; top: 0; left: 0; }
+.corner::after  { width: 0.5px; height: 100%; top: 0; left: 0; }
+.corner.tl { top: 8px; left: 8px; }
+.corner.tr { top: 8px; right: 8px; transform: scaleX(-1); }
+.corner.bl { bottom: 8px; left: 8px; transform: scaleY(-1); }
+.corner.br { bottom: 8px; right: 8px; transform: scale(-1); }
+
+/* ── Modal ── */
+#modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: rgba(4,7,12,0.78);
+  backdrop-filter: blur(3px);
+  align-items: center;
+  justify-content: center;
+}
+#modal-overlay.open { display: flex; }
+
+#modal {
+  background: var(--surface-hi);
+  border: 0.5px solid var(--border-hi);
+  width: min(740px, 92vw);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  animation: modal-in 0.22s ease;
+  clip-path: polygon(16px 0%, 100% 0%, calc(100% - 16px) 100%, 0% 100%);
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+
+#modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px 14px;
+  border-bottom: 0.5px solid var(--border);
+  flex-shrink: 0;
+}
+#modal-title {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+}
+#modal-close {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  background: none;
+  border: 0.5px solid var(--border);
+  padding: 4px 10px;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: all 0.15s;
+}
+#modal-close:hover { color: var(--text); border-color: var(--border-hi); }
+
+#modal-body {
+  padding: 28px 28px 32px;
+  overflow-y: auto;
+  flex: 1;
+}
+#modal-body::-webkit-scrollbar { width: 3px; }
+#modal-body::-webkit-scrollbar-track { background: transparent; }
+#modal-body::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+
+/* ── Modal content styles ── */
+.modal-section { margin-bottom: 32px; }
+.modal-section:last-child { margin-bottom: 0; }
+
+.section-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.modal-body-text {
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.8;
+  color: #8aacbe;
+}
+
+.exp-item {
+  margin-bottom: 24px;
+  padding-left: 16px;
+  border-left: 1.5px solid var(--border-hi);
+}
+.exp-item .role {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+.exp-item .org {
+  font-size: 12px;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.exp-item .period {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+.exp-item .desc {
+  font-size: 13px;
+  font-weight: 300;
+  color: #6a8a9a;
+  line-height: 1.7;
+}
+
+.skill-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.skill-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  border: 0.5px solid var(--border);
+  padding: 6px 10px;
+  text-align: center;
+}
+
+.resume-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 0.5px solid var(--border);
+}
+.resume-row:last-child { border-bottom: none; }
+.resume-row .label {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+}
+.resume-row .value {
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 0.5px solid var(--border);
+  text-decoration: none;
+}
+.contact-item:last-child { border-bottom: none; }
+.contact-item .ci-key {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  width: 90px;
+  flex-shrink: 0;
+}
+.contact-item .ci-val {
+  font-size: 13px;
+  color: var(--accent);
+}
+.contact-item:hover .ci-val { color: #e0eef6; }
+
+.download-btn {
+  display: inline-block;
+  margin-top: 20px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  padding: 10px 24px;
+  background: transparent;
+  color: var(--accent);
+  border: 0.5px solid var(--border-hi);
+  cursor: pointer;
+  transition: all 0.2s;
+  clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+}
+.download-btn:hover { background: rgba(106,180,212,0.08); color: #e0eef6; }
+
+.role a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.role a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+</style>
 </head>
 <body>
-  <h1>Hello, GitHub Pages!</h1>
-  <p>This is my first site.</p>
+
+<canvas id="bg-canvas"></canvas>
+<div id="scanlines"></div>
+
+<div class="corner tl"></div>
+<div class="corner tr"></div>
+<div class="corner bl"></div>
+<div class="corner br"></div>
+
+<div id="ui">
+  <div id="topbar">
+    <span class="sys-label">ATLAS EXPERIMENT &nbsp;·&nbsp; RUN 3 &nbsp;·&nbsp; pp COLLISIONS @ 13.6 TeV</span>
+    <div class="sys-status">
+      <div class="dot"></div>
+      <span class="status-txt" id="status-txt">CIRCULATING</span>
+      <span id="event-ticker">Event #0001 · Lumi block 42</span>
+    </div>
+  </div>
+
+  <div id="hero">
+    <p class="eyebrow">PORTFOLIO &nbsp;/&nbsp; RESEARCH &nbsp;/&nbsp; CONTACT</p>
+    <h1 id="hero-name">HAYATO ISA</h1>
+    <p class="tagline" id="hero-tagline">Applied Mathematics + Data Science<br>UC Berkeley</p>
+    <div id="nav">
+      <button class="nav-btn" onclick="openModal('about')">ABOUT</button>
+      <button class="nav-btn" onclick="openModal('experience')">EXPERIENCE</button>
+      <button class="nav-btn" onclick="openModal('resume')">RÉSUMÉ</button>
+      <button class="nav-btn" onclick="openModal('contact')">CONTACT</button>
+    </div>
+  </div>
+
+  <div id="bottomhud">
+    <div class="hud-metrics">
+      <div class="hud-metric"><div class="k">√s</div><div class="v">13.6 TeV</div></div>
+      <div class="hud-metric"><div class="k">N tracks</div><div class="v" id="m-tracks">—</div></div>
+      <div class="hud-metric"><div class="k">ET miss</div><div class="v" id="m-met">—</div></div>
+      <div class="hud-metric"><div class="k">N jets</div><div class="v" id="m-jets">—</div></div>
+      <div class="hud-metric"><div class="k">Event type</div><div class="v" id="m-type">—</div></div>
+    </div>
+    <div class="legend-row">
+      <div class="leg"><div class="leg-dot" style="background:#6ab4d4"></div>tracks</div>
+      <div class="leg"><div class="leg-dot" style="background:#d4a44a"></div>EM cal.</div>
+      <div class="leg"><div class="leg-dot" style="background:#8a4ac0"></div>HAD cal.</div>
+      <div class="leg"><div class="leg-dot" style="background:#4ac060"></div>muon</div>
+      <div class="leg"><div class="leg-dot" style="background:#d44a4a; border-radius:0; width:14px; height:1px"></div>ET miss</div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal-overlay" onclick="overlayClick(event)">
+  <div id="modal">
+    <div id="modal-header">
+      <span id="modal-title">—</span>
+      <button id="modal-close" onclick="closeModal()">[ CLOSE ]</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════
+   PARTICLE DETECTOR BACKGROUND
+   ════════════════════════════════ */
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let W, H, CX, CY, R;
+
+function resize() {
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W; canvas.height = H;
+  CX = W/2; CY = H/2;
+  R = Math.min(W, H) * 0.42;
+}
+resize();
+window.addEventListener('resize', () => { resize(); });
+
+let tracks=[], caloHits=[], muons=[], jets=[], metAngle=0, metMag=0;
+let eventNum=1, autoT=0, last=0, animT=0, animating=false, animDur=1100;
+
+function rnd(a,b){return a+(b-a)*Math.random();}
+function rndInt(a,b){return Math.floor(rnd(a,b+1));}
+function hexAlpha(hex,a){
+  let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a.toFixed(3)})`;
+}
+function ease(t){return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
+
+function generateEvent() {
+  tracks=[]; caloHits=[]; muons=[]; jets=[];
+  let nT=rndInt(12,50), nM=rndInt(0,3), nJ=rndInt(2,7);
+  let hasMET = Math.random()>0.38;
+
+  document.getElementById('m-tracks').textContent = nT;
+  document.getElementById('m-jets').textContent = nJ;
+  document.getElementById('event-ticker').textContent =
+    'Event #'+String(eventNum).padStart(4,'0')+' · Lumi block '+rndInt(10,99);
+  eventNum++;
+
+  for(let i=0;i<nT;i++){
+    let phi=rnd(0,Math.PI*2), pt=rnd(0.3,1.0), charge=Math.random()>0.5?1:-1;
+    tracks.push({phi, pt, curve:charge*rnd(0.04,0.18)*(1/pt), r:pt*R*0.82});
+  }
+  let jetClusters=[];
+  for(let j=0;j<nJ;j++){
+    let phi=rnd(0,Math.PI*2), ET=rnd(0.3,0.9), spread=0.22;
+    jetClusters.push({phi,ET});
+    for(let k=0;k<rndInt(6,16);k++){
+      let isEM=Math.random()>0.45;
+      caloHits.push({phi:phi+rnd(-spread,spread), r:rnd(0.62,0.90), w:rnd(0.008,0.022), ET:ET*rnd(0.1,0.6), isEM});
+    }
+    jets.push({phi,ET,dphi:spread});
+  }
+  for(let i=0;i<rndInt(4,12);i++){
+    caloHits.push({phi:rnd(0,Math.PI*2), r:rnd(0.55,0.85), w:rnd(0.005,0.012), ET:rnd(0.03,0.15), isEM:Math.random()>0.3});
+  }
+  for(let i=0;i<nM;i++) muons.push({phi:rnd(0,Math.PI*2), pt:rnd(0.5,1.0)});
+  if(hasMET){
+    metAngle=rnd(0,Math.PI*2); metMag=rnd(0.3,0.78);
+    document.getElementById('m-met').textContent = Math.round(metMag*180)+' GeV';
+  } else {
+    metMag=0; document.getElementById('m-met').textContent = '< 20 GeV';
+  }
+
+  let eventType;
+  if      (metMag>0.7 && nJ>=4)      eventType='SUSY candidate';
+  else if (metMag>0.6 && nJ>=2)      eventType='W+jets';
+  else if (nM>=2 && metMag<0.3)      eventType='Z→μμ';
+  else if (nM>=2 && nJ>=2)           eventType='ZZ';
+  else if (nM>=1 && metMag>0.4)      eventType='W→μν';
+  else if (nJ>=6)                     eventType='ttbar';
+  else if (nJ>=5)                     eventType='multijet';
+  else if (nJ===4 && metMag>0.3)     eventType='single top';
+  else if (nJ===2 && metMag<0.15)    eventType='QCD dijet';
+  else if (nJ===2 && nM>=1)          eventType='Z+jets';
+  else if (nJ===3)                    eventType='triboson';
+  else                                eventType='minimum bias';
+  document.getElementById('m-type').textContent = eventType;
+
+  document.getElementById('status-txt').textContent='COLLISION';
+  setTimeout(()=>document.getElementById('status-txt').textContent='CIRCULATING',900);
+  animating=true; animT=0;
+}
+
+function drawBg(){
+  ctx.fillStyle='#07090f';
+  ctx.fillRect(0,0,W,H);
+}
+function drawGrid(){
+  for(let i=1;i<=5;i++){
+    ctx.beginPath(); ctx.arc(CX,CY,R*(i/5),0,Math.PI*2);
+    ctx.strokeStyle='rgba(20,50,70,0.55)'; ctx.lineWidth=0.5; ctx.stroke();
+  }
+  for(let i=0;i<12;i++){
+    let phi=(i/12)*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(CX,CY);
+    ctx.lineTo(CX+Math.cos(phi)*R,CY+Math.sin(phi)*R);
+    ctx.strokeStyle='rgba(20,50,70,0.4)'; ctx.lineWidth=0.5; ctx.stroke();
+  }
+  ctx.strokeStyle='rgba(40,80,100,0.35)'; ctx.lineWidth=0.5;
+  ctx.beginPath(); ctx.moveTo(CX-R-20,CY); ctx.lineTo(CX+R+20,CY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(CX,CY-R-20); ctx.lineTo(CX,CY+R+20); ctx.stroke();
+
+  ctx.font='9px "Space Mono", monospace';
+  ctx.fillStyle='rgba(42,64,80,0.9)';
+  ctx.textAlign='center';
+  ctx.fillText('η=0', CX+R+22, CY+3);
+  ctx.fillText('φ', CX+2, CY-R-18);
+
+  let etaLabels=[['|η|=1',0.33],['|η|=2',0.62],['|η|=3',0.85]];
+  for(let [label,frac] of etaLabels){
+    ctx.fillStyle='rgba(30,48,64,0.85)';
+    ctx.textAlign='left';
+    ctx.fillText(label, CX+R*frac+3, CY-6);
+  }
+}
+function drawCalo(pr){
+  for(let h of caloHits){
+    let p=Math.min(1,pr*2.5); if(p<=0) continue;
+    let ir=R*(h.isEM?0.62:0.75);
+    let or=Math.min(R*0.94, R*(h.isEM?0.75:0.88)*(0.3+0.7*p*h.ET/0.5+h.ET*0.4));
+    let p1=h.phi-h.w, p2=h.phi+h.w;
+    ctx.beginPath();
+    ctx.moveTo(CX+Math.cos(p1)*ir, CY+Math.sin(p1)*ir);
+    ctx.lineTo(CX+Math.cos(p1)*or, CY+Math.sin(p1)*or);
+    ctx.arc(CX,CY,or,p1,p2);
+    ctx.lineTo(CX+Math.cos(p2)*ir, CY+Math.sin(p2)*ir);
+    ctx.arc(CX,CY,ir,p2,p1,true);
+    ctx.closePath();
+    let col=h.isEM?'#d4a44a':'#8a4ac0';
+    ctx.fillStyle=hexAlpha(col,(0.52+h.ET*0.4)*p);
+    ctx.fill();
+    ctx.strokeStyle=hexAlpha(col,0.25*p); ctx.lineWidth=0.5; ctx.stroke();
+  }
+}
+function drawTracks(pr){
+  for(let t of tracks){
+    let len=t.r*Math.min(1,pr*1.8), steps=60;
+    ctx.beginPath(); ctx.moveTo(CX,CY);
+    let phi=t.phi;
+    for(let s=1;s<=steps;s++){
+      let frac=s/steps, r=len*frac;
+      phi=t.phi+t.curve*r;
+      ctx.lineTo(CX+Math.cos(phi)*r, CY+Math.sin(phi)*r);
+    }
+    ctx.strokeStyle=hexAlpha('#6ab4d4',0.4); ctx.lineWidth=0.65; ctx.stroke();
+  }
+}
+function drawMuons(pr){
+  for(let m of muons){
+    let ext=R*1.08*Math.min(1,pr*1.5);
+    ctx.beginPath(); ctx.moveTo(CX,CY);
+    ctx.lineTo(CX+Math.cos(m.phi)*ext, CY+Math.sin(m.phi)*ext);
+    ctx.strokeStyle=hexAlpha('#4ac060',0.8); ctx.lineWidth=1.5; ctx.setLineDash([]); ctx.stroke();
+    if(pr>0.6){
+      ctx.beginPath(); ctx.arc(CX+Math.cos(m.phi)*ext, CY+Math.sin(m.phi)*ext, 3,0,Math.PI*2);
+      ctx.fillStyle='#4ac060'; ctx.fill();
+    }
+  }
+}
+function drawJets(pr){
+  for(let j of jets){
+    if(pr<0.3) continue;
+    let p=Math.min(1,(pr-0.3)/0.5);
+    let len=R*0.84*p, sp=j.dphi;
+    ctx.beginPath(); ctx.moveTo(CX,CY);
+    ctx.lineTo(CX+Math.cos(j.phi-sp)*len, CY+Math.sin(j.phi-sp)*len);
+    ctx.arc(CX,CY,len,j.phi-sp,j.phi+sp);
+    ctx.closePath();
+    ctx.fillStyle=hexAlpha('#c08820',0.06*p); ctx.fill();
+    ctx.strokeStyle=hexAlpha('#c08820',0.18*p);
+    ctx.lineWidth=0.5; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+
+    if(p>0.7){
+      let lx=CX+Math.cos(j.phi)*(len+12);
+      let ly=CY+Math.sin(j.phi)*(len+12);
+      ctx.fillStyle=hexAlpha('#a07820',0.75*p);
+      ctx.font='9px "Space Mono", monospace';
+      ctx.textAlign='center';
+      ctx.fillText('jet', lx, ly);
+    }
+  }
+}
+function drawMET(pr){
+  if(metMag<0.1||pr<0.7) return;
+  let p=Math.min(1,(pr-0.7)/0.4);
+  let len=R*metMag*p;
+  let ex=CX+Math.cos(metAngle)*len, ey=CY+Math.sin(metAngle)*len;
+  ctx.beginPath(); ctx.moveTo(CX,CY); ctx.lineTo(ex,ey);
+  ctx.strokeStyle=hexAlpha('#d44a4a',0.82*p); ctx.lineWidth=1.5;
+  ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]);
+  let dx=ex-CX,dy=ey-CY,nm=Math.sqrt(dx*dx+dy*dy); dx/=nm; dy/=nm;
+  let al=10,aw=5;
+  ctx.beginPath();
+  ctx.moveTo(ex,ey);
+  ctx.lineTo(ex-dx*al-dy*aw, ey-dy*al+dx*aw);
+  ctx.lineTo(ex-dx*al+dy*aw, ey-dy*al-dx*aw);
+  ctx.closePath();
+  ctx.fillStyle=hexAlpha('#d44a4a',0.82*p); ctx.fill();
+
+  ctx.fillStyle=hexAlpha('#d44a4a',0.7*p);
+  ctx.font='9px "Space Mono", monospace';
+  ctx.textAlign='center';
+  let lx=CX+Math.cos(metAngle)*(len+16);
+  let ly=CY+Math.sin(metAngle)*(len+16);
+  ctx.fillText('Eᵀmiss', lx, ly);
+}
+function drawVertex(){
+  ctx.beginPath(); ctx.arc(CX,CY,2.5,0,Math.PI*2);
+  ctx.fillStyle='#d0e8f8'; ctx.fill();
+  ctx.beginPath(); ctx.arc(CX,CY,6,0,Math.PI*2);
+  ctx.strokeStyle='rgba(160,210,240,0.25)'; ctx.lineWidth=1; ctx.stroke();
+}
+
+function frame(ts){
+  let dt=ts-last; last=ts;
+  autoT+=dt;
+  if(autoT>3400){ autoT=0; generateEvent(); }
+  if(animating){ animT+=dt; if(animT>animDur) animating=false; }
+  let pr=animating?ease(Math.min(1,animT/animDur)):1;
+
+  drawBg(); drawGrid();
+  drawCalo(pr); drawJets(pr); drawTracks(pr); drawMuons(pr); drawMET(pr);
+  if(pr>0.1) drawVertex();
+  requestAnimationFrame(frame);
+}
+generateEvent();
+requestAnimationFrame(frame);
+
+/* ════════════════════════════════
+   MODAL SYSTEM
+   ════════════════════════════════ */
+const CONTENT = {
+  about: {
+    title: 'ABOUT / BIOGRAPHY',
+    html: `
+      <div class="modal-section">
+        <div class="section-label">BACKGROUND</div>
+        <p class="modal-body-text">
+          Recent graduate of the University of California, Berkeley with degrees in Applied Mathematics and Data Science. My interests lie at the intersection of mathematics, statistics, machine learning, and scientific computing. Through academic coursework and independent projects, I have worked on data analysis, Bayesian modeling, software development, and computational research, including studies involving high-energy physics data and mathematical problem solving.
+        </p>
+      </div>
+      <div class="modal-section">
+        <div class="section-label">SKILLS & TOOLS</div>
+        <div class="skill-grid">
+          <div class="skill-tag">Python</div>
+          <div class="skill-tag">SQL</div>
+          <div class="skill-tag">Java</div>
+          <div class="skill-tag">JavaScript</div>
+          <div class="skill-tag">C++</div>
+          <div class="skill-tag">Go</div>
+          <div class="skill-tag">MATLAB</div>
+          <div class="skill-tag">LaTeX</div>
+          <div class="skill-tag">pandas</div>
+          <div class="skill-tag">NumPy</div>
+          <div class="skill-tag">SciPy</div>
+          <div class="skill-tag">Tableau</div>
+          <div class="skill-tag">Altair</div>
+          <div class="skill-tag">Matplotlib</div>
+          <div class="skill-tag">Seaborn</div>
+          <div class="skill-tag">PyMC</div>
+          <div class="skill-tag">PyTorch</div>
+          <div class="skill-tag">TensorFlow</div>
+          <div class="skill-tag">OpenCV</div>
+          <div class="skill-tag">Excel</div>
+          <div class="skill-tag">Jupyter</div>
+          <div class="skill-tag">Google Cloud</div>
+          <div class="skill-tag">Git</div>
+          <div class="skill-tag">VS Code</div>
+          <div class="skill-tag">IntelliJ IDEA</div>
+          <div class="skill-tag">Node.js</div>
+          <div class="skill-tag">Discord.js</div>
+          <div class="skill-tag">Gemini API</div>
+        </div>
+      </div>
+    `
+  },
+  experience: {
+    title: 'PROJECTS / EXPERIENCE',
+    html: `
+      <div class="modal-section"> <div class="section-label">DATA SCIENCE & RESEARCH</div>
+      <div class="exp-item">
+        <div class="role">
+          <a href="https://hayathorium.github.io/COPD_analysis/A_Bayesian_Hierarchical_Approach_to_Estimating_PM2.5_Effects_on_COPD_Prevalence_Across_the_United_States.pdf" target="_blank">
+            COPD Prevalence Analysis
+          </a>
+        </div>
+        <div class="org">Bayesian Hierarchical Modeling · Python · PyMC</div>
+        <div class="period">DEC 2025</div>
+        <div class="desc">
+          Developed a Bayesian hierarchical model using public health datasets to study state-level variation in COPD prevalence. Applied MCMC-based inference, conducted sensitivity analyses, and improved prediction accuracy by reducing RMSE by approximately 28% compared to an OLS baseline.
+        </div>
+      </div>
+
+      <div class="exp-item">
+        <div class="role">
+          <a href="https://hayathorium.github.io/higgs-4l-opendata/Higgs_Boson_Search_in_the_Four_Lepton_Final_State_Using_ATLAS_Open_Data.pdf" target="_blank">
+            Higgs Boson Discovery Replication Study
+          </a>
+        </div>
+        <div class="org">ATLAS Open Data · Statistical Inference</div>
+        <div class="period">DEC 2025</div>
+        <div class="desc">
+          Replicated a high-energy physics analysis using CERN Open Data and event-selection criteria derived from ATLAS publications. Performed profile likelihood hypothesis testing and observed a signal significance consistent with Higgs boson production.
+        </div>
+      </div>
+
+      <div class="exp-item">
+        <div class="role">
+          <a href="https://arxiv.org/abs/2311.03398" target="_blank">
+            Generalized Werner's Formula and the Connection between Trigonometry with Target Sum Problems
+          </a>
+        </div>
+        <div class="org">Independent Mathematics Research · arXiv</div>
+        <div class="period">NOV 2023</div>
+        <div class="desc">
+          Authored and published a mathematics research paper exploring a generalized form of Werner's Formula and its connection to combinatorial target sum problems.
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <div class="section-label">SOFTWARE & ENGINEERING</div>
+
+      <div class="exp-item">
+        <div class="role">
+          <a href="https://github.com/Hayathorium/AI_groupchat" target="_blank">
+            LLM Multi-Agent System
+          </a>
+        </div>
+        <div class="org">Node.js · Gemini API · Google Cloud</div>
+        <div class="period">MAY 2026</div>
+        <div class="desc">
+          Built and deployed a Discord-based multi-agent system consisting of 20 AI agents generating approximately 7,500 messages per day. Designed a real-time ETL pipeline and maintained 24/7 cloud deployment using PM2.
+        </div>
+      </div>
+
+      <div class="exp-item">
+        <div class="role">
+          <a href="https://github.com/Hayathorium/secure_file_sharing_system" target="_blank">
+            Secure File Sharing System
+          </a>
+        </div>
+        <div class="org">Go · Cryptography · PKI · AES</div>
+        <div class="period">APR 2026</div>
+        <div class="desc">
+          Designed and implemented a secure file-sharing platform supporting authentication, encrypted storage, digital signatures, and access revocation in an adversarial environment.
+        </div>
+      </div>
+
+      <div class="exp-item">
+        <div class="role">
+          <a href="https://www.amazon.com.au/pomu-Daifuku-Divide/dp/B0CLKVV5VV" target="_blank">
+            Daifuku Divide!
+          </a>
+        </div>
+        <div class="org">Android Game Development</div>
+        <div class="period">2023</div>
+        <div class="desc">
+          Developed and published an educational mathematics game for Android focused on arithmetic and division practice through interactive gameplay.
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <div class="section-label">LEADERSHIP & PUBLICATIONS</div>
+
+      <div class="exp-item">
+        <div class="role">
+          <a href="https://www.instagram.com/integral_association/" target="_blank">
+            Founder & President
+          </a>
+        </div>
+        <div class="org">Integral Association · De Anza College</div>
+        <div class="period">2023 — 2024</div>
+        <div class="desc">
+          Founded and led a mathematics and science community, organized events, managed club operations, and developed the organization's online presence.
+        </div>
+      </div>
+
+      <div class="exp-item">
+        <div class="role">
+          <a href="https://www.instagram.com/acm.deanza/" target="_blank">
+            Technical Manager
+          </a>
+        </div>
+        <div class="org">ACM Club · De Anza College</div>
+        <div class="period">2023 — 2024</div>
+        <div class="desc">
+          Managed technical infrastructure and supported club activities related to software development and computer science education.
+        </div>
+      </div>
+
+      <div class="exp-item">
+        <div class="role">
+          <a href="https://www.amazon.com/-/he/Hayato-Isa-ebook/dp/B0CMJWLMRW" target="_blank">
+            Author
+          </a>
+        </div>
+        <div class="org">15 Daunting Math Problems You've Never Seen</div>
+        <div class="period">2023</div>
+        <div class="desc">
+          Self-published a mathematics problem-solving book featuring original and challenging problems with detailed solutions.
+        </div>
+      </div>
+    </div>
+    `
+  },
+  resume: {
+    title: 'RÉSUMÉ / CURRICULUM VITAE',
+    html: `
+      <div style="height:75vh;">
+        <iframe src="./resume.pdf" width="100%" height="100%" style="border:none;"></iframe>
+      </div>
+      <div style="margin-top:12px;">
+        <a href="./resume.pdf" download class="download-btn">Download Resume (PDF)</a>
+      </div>
+    `
+  },
+  contact: {
+    title: 'CONTACT / LINKS',
+    html: `
+      <div class="modal-section">
+        <div class="section-label">DIRECT CONTACT</div>
+        <a class="contact-item" href="mailto:iamhayatoisa@berkeley.edu">
+          <span class="ci-key">EMAIL</span>
+          <span class="ci-val">iamhayatoisa@berkeley.edu</span>
+        </a>
+      </div>
+      <div class="modal-section">
+        <div class="section-label">ONLINE PROFILES</div>
+        <a class="contact-item" href="https://scholar.google.com/citations?user=GfKwZkYAAAAJ&hl=en" target="_blank">
+          <span class="ci-key">GOOGLE SCHOLAR</span>
+          <span class="ci-val">scholar.google.com/citations?user=GfKwZkYAAAAJ</span>
+        </a>
+        <a class="contact-item" href="https://github.com/Hayathorium" target="_blank">
+          <span class="ci-key">GITHUB</span>
+          <span class="ci-val">github.com/Hayathorium</span>
+        </a>
+        <a class="contact-item" href="https://www.linkedin.com/in/hayato-isa-396457411/" target="_blank">
+          <span class="ci-key">LINKEDIN</span>
+          <span class="ci-val">linkedin.com/in/hayato-isa-396457411/</span>
+        </a>
+      </div>
+    `
+  }
+};
+
+function openModal(key) {
+  const data = CONTENT[key];
+  document.getElementById('modal-title').textContent = data.title;
+  document.getElementById('modal-body').innerHTML = data.html;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+function overlayClick(e) {
+  if(e.target === document.getElementById('modal-overlay')) closeModal();
+}
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+</script>
 </body>
 </html>
