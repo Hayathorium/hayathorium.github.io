@@ -527,56 +527,261 @@ function hexAlpha(hex,a){
 }
 function ease(t){return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
 
+/* ════════════════════════════════
+   PHYSICS EVENT GENERATORS
+   ════════════════════════════════ */
+
+/* ── shared helpers ── */
+function buildJets(jetDefs) {
+  const spread = 0.22;
+  for (const jd of jetDefs) {
+    jets.push({phi: jd.phi, ET: jd.ET, dphi: spread});
+    for (let k = 0; k < rndInt(6,16); k++) {
+      const isEM = Math.random() > 0.45;
+      caloHits.push({phi: jd.phi + rnd(-spread, spread), r: rnd(0.62,0.90),
+                     w: rnd(0.008,0.022), ET: jd.ET * rnd(0.1,0.6), isEM});
+    }
+    // Level 1: tracks clustered around each jet
+    const nTracksInJet = rndInt(5,15);
+    for (let i = 0; i < nTracksInJet; i++) {
+      const phi = jd.phi + rnd(-0.25, 0.25);
+      const pt  = rnd(0.3, 1.0);
+      const charge = Math.random() > 0.5 ? 1 : -1;
+      tracks.push({phi, pt, curve: charge * rnd(0.04,0.18) * (1/pt), r: pt * R * 0.82});
+    }
+  }
+  // sparse underlying-event tracks
+  for (let i = 0; i < rndInt(3,8); i++) {
+    const phi = rnd(0, Math.PI*2), pt = rnd(0.2, 0.5), charge = Math.random() > 0.5 ? 1 : -1;
+    tracks.push({phi, pt, curve: charge * rnd(0.04,0.18) * (1/pt), r: pt * R * 0.82});
+  }
+  // soft calo noise
+  for (let i = 0; i < rndInt(4,10); i++) {
+    caloHits.push({phi: rnd(0, Math.PI*2), r: rnd(0.55,0.85),
+                   w: rnd(0.005,0.012), ET: rnd(0.03,0.12), isEM: Math.random() > 0.3});
+  }
+}
+
+function addMuon(phi, pt) {
+  muons.push({phi: phi !== undefined ? phi : rnd(0, Math.PI*2),
+              pt:  pt  !== undefined ? pt  : rnd(0.5, 1.0)});
+}
+
+// Electrons rendered as narrow EM calo deposits + a track (no muon line)
+function addElectron(phi) {
+  const p = phi !== undefined ? phi : rnd(0, Math.PI*2);
+  const ET = rnd(0.55, 1.0);
+  // tight EM cluster
+  for (let k = 0; k < rndInt(4,8); k++) {
+    caloHits.push({phi: p + rnd(-0.06,0.06), r: rnd(0.63,0.78),
+                   w: rnd(0.006,0.014), ET: ET * rnd(0.4,1.0), isEM: true});
+  }
+  // matching track
+  const charge = Math.random() > 0.5 ? 1 : -1;
+  tracks.push({phi: p, pt: ET, curve: charge * rnd(0.04,0.12) * (1/ET), r: ET * R * 0.80});
+}
+
+// Photons: EM cluster only, no track
+function addPhoton(phi) {
+  const p = phi !== undefined ? phi : rnd(0, Math.PI*2);
+  const ET = rnd(0.5, 1.0);
+  for (let k = 0; k < rndInt(5,10); k++) {
+    caloHits.push({phi: p + rnd(-0.05,0.05), r: rnd(0.63,0.76),
+                   w: rnd(0.006,0.013), ET: ET * rnd(0.5,1.0), isEM: true});
+  }
+}
+
+function randomPhi() { return rnd(0, Math.PI*2); }
+function randomJetPhis(n) { return Array.from({length: n}, randomPhi); }
+function backToBack(spread=0.15) {
+  const phi1 = randomPhi();
+  return [phi1, phi1 + Math.PI + rnd(-spread, spread)];
+}
+
+/* ── individual process generators ── */
+
+function generateQCDDijet() {
+  // 2 back-to-back high-ET jets, no leptons, minimal MET
+  const [phi1, phi2] = backToBack(0.15);
+  buildJets([{phi: phi1, ET: rnd(0.7,1.0)}, {phi: phi2, ET: rnd(0.7,1.0)}]);
+  metMag = rnd(0, 0.10); metAngle = randomPhi();
+  return {label: 'QCD dijet', nJ: 2};
+}
+
+function generateWJets() {
+  // W→lν: 1 lepton (muon here) + 2-4 jets + large MET opposite lepton
+  const nJ = rndInt(2, 4);
+  buildJets(randomJetPhis(nJ).map(phi => ({phi, ET: rnd(0.4,0.85)})));
+  const lepPhi = randomPhi();
+  addMuon(lepPhi, rnd(0.6,1.0));
+  metMag  = rnd(0.50, 0.78);
+  metAngle = lepPhi + Math.PI + rnd(-0.4, 0.4);
+  return {label: 'W+jets', nJ};
+}
+
+function generateZMuMu() {
+  // Z→μμ: 2 back-to-back muons, 0-2 jets, near-zero MET
+  const nJ = rndInt(0, 2);
+  buildJets(randomJetPhis(nJ).map(phi => ({phi, ET: rnd(0.3,0.6)})));
+  const [phi1, phi2] = backToBack(0.3);
+  addMuon(phi1, rnd(0.6,1.0)); addMuon(phi2, rnd(0.6,1.0));
+  metMag = rnd(0, 0.08); metAngle = randomPhi();
+  return {label: 'Z→μμ', nJ};
+}
+
+function generateZEE() {
+  // Z→ee: 2 back-to-back EM clusters, 0-2 jets, near-zero MET
+  const nJ = rndInt(0, 2);
+  buildJets(randomJetPhis(nJ).map(phi => ({phi, ET: rnd(0.3,0.6)})));
+  const [phi1, phi2] = backToBack(0.3);
+  addElectron(phi1); addElectron(phi2);
+  metMag = rnd(0, 0.08); metAngle = randomPhi();
+  return {label: 'Z→ee', nJ};
+}
+
+function generateTTbar() {
+  // tt̄: 4-8 jets (2 b-jets implicit), 1-2 leptons, moderate MET
+  const nJ = rndInt(4, 8);
+  buildJets(randomJetPhis(nJ).map(phi => ({phi, ET: rnd(0.4,0.90)})));
+  const nM = rndInt(1, 2);
+  for (let i = 0; i < nM; i++) addMuon();
+  metMag = rnd(0.35, 0.65); metAngle = randomPhi();
+  return {label: 'tt̄', nJ};
+}
+
+function generateWW() {
+  // WW: 2 leptons (opposite sign), ~2 jets, moderate MET
+  const nJ = rndInt(0, 2);
+  buildJets(randomJetPhis(nJ).map(phi => ({phi, ET: rnd(0.3,0.6)})));
+  addMuon(); addMuon();
+  metMag = rnd(0.30, 0.60); metAngle = randomPhi();
+  return {label: 'WW', nJ};
+}
+
+function generateZZ() {
+  // ZZ: 4 leptons (two Z→ll), few jets, very low MET
+  const nJ = rndInt(0, 2);
+  buildJets(randomJetPhis(nJ).map(phi => ({phi, ET: rnd(0.25,0.55)})));
+  const [p1,p2] = backToBack(0.35); const [p3,p4] = backToBack(0.35);
+  addMuon(p1); addMuon(p2); addMuon(p3); addMuon(p4);
+  metMag = rnd(0, 0.08); metAngle = randomPhi();
+  return {label: 'ZZ', nJ};
+}
+
+function generateWZ() {
+  // WZ: 3 leptons + MET
+  const nJ = rndInt(0, 2);
+  buildJets(randomJetPhis(nJ).map(phi => ({phi, ET: rnd(0.3,0.6)})));
+  const [p1,p2] = backToBack(0.3);
+  addMuon(p1); addMuon(p2); addMuon();
+  metMag = rnd(0.30, 0.55); metAngle = randomPhi();
+  return {label: 'WZ', nJ};
+}
+
+function generateSingleTop() {
+  // single top: 1 b-jet + 1-2 light jets, 1 lepton, moderate MET
+  const nJ = rndInt(2, 3);
+  buildJets(randomJetPhis(nJ).map(phi => ({phi, ET: rnd(0.4,0.80)})));
+  addMuon();
+  metMag = rnd(0.30, 0.60); metAngle = randomPhi();
+  return {label: 'single top', nJ};
+}
+
+function generateHiggsBB() {
+  // H→bb̄: 2 b-tagged jets (boosted or resolved) + associated W/Z → leptons/MET
+  const nJ = rndInt(2, 4);
+  const [phi1, phi2] = backToBack(0.25);
+  const extraJs = randomJetPhis(nJ - 2).map(phi => ({phi, ET: rnd(0.3,0.65)}));
+  buildJets([{phi: phi1, ET: rnd(0.6,1.0)}, {phi: phi2, ET: rnd(0.6,1.0)}, ...extraJs]);
+  // associated production: add 1 lepton + MET (WH) or 2 muons (ZH) at random
+  if (Math.random() > 0.5) { addMuon(); metMag = rnd(0.35,0.65); }
+  else { addMuon(); addMuon(); metMag = rnd(0,0.10); }
+  metAngle = randomPhi();
+  return {label: 'H→bb̄', nJ};
+}
+
+function generateHiggsZZ4L() {
+  // H→ZZ*→4l: 4 leptons, very low MET, few/no jets — the "golden channel"
+  const nJ = rndInt(0, 1);
+  buildJets(randomJetPhis(nJ).map(phi => ({phi, ET: rnd(0.25,0.50)})));
+  const [p1,p2] = backToBack(0.4); const [p3,p4] = backToBack(0.4);
+  addMuon(p1); addMuon(p2);
+  // second Z can decay to electrons
+  addElectron(p3); addElectron(p4);
+  metMag = rnd(0, 0.06); metAngle = randomPhi();
+  return {label: 'H→ZZ*→4l', nJ};
+}
+
+function generateHiggsGamGam() {
+  // H→γγ: 2 isolated photons, few/no jets, low MET
+  const nJ = rndInt(0, 2);
+  buildJets(randomJetPhis(nJ).map(phi => ({phi, ET: rnd(0.25,0.55)})));
+  const [phi1, phi2] = backToBack(0.25);
+  addPhoton(phi1); addPhoton(phi2);
+  metMag = rnd(0, 0.08); metAngle = randomPhi();
+  return {label: 'H→γγ', nJ};
+}
+
+function generateSUSY() {
+  // SUSY-like: many jets, ≥1 lepton, very large MET (missing neutralino)
+  const nJ = rndInt(4, 8);
+  buildJets(randomJetPhis(nJ).map(phi => ({phi, ET: rnd(0.45,0.95)})));
+  const nM = rndInt(1, 2);
+  for (let i = 0; i < nM; i++) addMuon();
+  metMag = rnd(0.65, 0.95); metAngle = randomPhi();
+  return {label: 'SUSY-like', nJ};
+}
+
+function generateMinBias() {
+  // soft underlying event: very few low-ET jets, no leptons, negligible MET
+  const nJ = rndInt(0, 2);
+  buildJets(randomJetPhis(nJ).map(phi => ({phi, ET: rnd(0.12,0.38)})));
+  metMag = 0; metAngle = 0;
+  return {label: 'min. bias', nJ};
+}
+
+/* ── weighted process table ── */
+const PROCESS_TABLE = [
+  {w: 0.35, gen: generateQCDDijet},
+  {w: 0.18, gen: generateWJets},
+  {w: 0.08, gen: generateZMuMu},
+  {w: 0.08, gen: generateZEE},
+  {w: 0.10, gen: generateTTbar},
+  {w: 0.05, gen: generateWW},
+  {w: 0.04, gen: generateZZ},
+  {w: 0.04, gen: generateWZ},
+  {w: 0.04, gen: generateSingleTop},
+  {w: 0.015,gen: generateHiggsBB},
+  {w: 0.010,gen: generateHiggsZZ4L},
+  {w: 0.010,gen: generateHiggsGamGam},
+  {w: 0.02, gen: generateSUSY},
+  {w: 0.04, gen: generateMinBias},
+];
+const TOTAL_WEIGHT = PROCESS_TABLE.reduce((s,p)=>s+p.w, 0);
+
+function pickGenerator() {
+  let r = Math.random() * TOTAL_WEIGHT;
+  for (const p of PROCESS_TABLE) { r -= p.w; if (r <= 0) return p.gen; }
+  return PROCESS_TABLE[PROCESS_TABLE.length-1].gen;
+}
+
 function generateEvent() {
   tracks=[]; caloHits=[]; muons=[]; jets=[];
-  let nT=rndInt(12,50), nM=rndInt(0,3), nJ=rndInt(2,7);
-  let hasMET = Math.random()>0.38;
 
-  document.getElementById('m-tracks').textContent = nT;
-  document.getElementById('m-jets').textContent = nJ;
   document.getElementById('event-ticker').textContent =
     'Event #'+String(eventNum).padStart(4,'0')+' · Lumi block '+rndInt(10,99);
   eventNum++;
 
-  for(let i=0;i<nT;i++){
-    let phi=rnd(0,Math.PI*2), pt=rnd(0.3,1.0), charge=Math.random()>0.5?1:-1;
-    tracks.push({phi, pt, curve:charge*rnd(0.04,0.18)*(1/pt), r:pt*R*0.82});
-  }
-  let jetClusters=[];
-  for(let j=0;j<nJ;j++){
-    let phi=rnd(0,Math.PI*2), ET=rnd(0.3,0.9), spread=0.22;
-    jetClusters.push({phi,ET});
-    for(let k=0;k<rndInt(6,16);k++){
-      let isEM=Math.random()>0.45;
-      caloHits.push({phi:phi+rnd(-spread,spread), r:rnd(0.62,0.90), w:rnd(0.008,0.022), ET:ET*rnd(0.1,0.6), isEM});
-    }
-    jets.push({phi,ET,dphi:spread});
-  }
-  for(let i=0;i<rndInt(4,12);i++){
-    caloHits.push({phi:rnd(0,Math.PI*2), r:rnd(0.55,0.85), w:rnd(0.005,0.012), ET:rnd(0.03,0.15), isEM:Math.random()>0.3});
-  }
-  for(let i=0;i<nM;i++) muons.push({phi:rnd(0,Math.PI*2), pt:rnd(0.5,1.0)});
-  if(hasMET){
-    metAngle=rnd(0,Math.PI*2); metMag=rnd(0.3,0.78);
-    document.getElementById('m-met').textContent = Math.round(metMag*180)+' GeV';
-  } else {
-    metMag=0; document.getElementById('m-met').textContent = '< 20 GeV';
-  }
+  const result = pickGenerator()();
 
-  let eventType;
-  if      (metMag>0.7 && nJ>=4)      eventType='SUSY candidate';
-  else if (metMag>0.6 && nJ>=2)      eventType='W+jets';
-  else if (nM>=2 && metMag<0.3)      eventType='Z→μμ';
-  else if (nM>=2 && nJ>=2)           eventType='ZZ';
-  else if (nM>=1 && metMag>0.4)      eventType='W→μν';
-  else if (nJ>=6)                     eventType='ttbar';
-  else if (nJ>=5)                     eventType='multijet';
-  else if (nJ===4 && metMag>0.3)     eventType='single top';
-  else if (nJ===2 && metMag<0.15)    eventType='QCD dijet';
-  else if (nJ===2 && nM>=1)          eventType='Z+jets';
-  else if (nJ===3)                    eventType='triboson';
-  else                                eventType='minimum bias';
-  document.getElementById('m-type').textContent = eventType;
+  document.getElementById('m-tracks').textContent = tracks.length;
+  document.getElementById('m-jets').textContent   = result.nJ;
+  if (metMag > 0.08) {
+    document.getElementById('m-met').textContent = Math.round(metMag * 180) + ' GeV';
+  } else {
+    document.getElementById('m-met').textContent = '< 20 GeV';
+  }
+  document.getElementById('m-type').textContent = result.label;
 
   document.getElementById('status-txt').textContent='COLLISION';
   setTimeout(()=>document.getElementById('status-txt').textContent='CIRCULATING',900);
