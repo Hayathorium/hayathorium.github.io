@@ -212,8 +212,8 @@ scene.background = new THREE.Color(0x03050d);
 scene.fog = new THREE.FogExp2(0x03050d, 0.007);
 
 const camera = new THREE.PerspectiveCamera(46, W3 / H3, 0.05, 600);
-let camAz = 0.52;
-const CAM_POLAR = 90 * Math.PI / 180; // exactly 85° from vertical
+let camAz = 1.00;
+const CAM_POLAR = 90 * Math.PI / 180; // exactly 90° from vertical
 let camR = 60;
 
 function updateCamera() {
